@@ -63,6 +63,7 @@ async function handleRequest(request, response) {
   } catch (e) {
     console.error(e);
   } finally {
+    console.log("answering", request.question);
     response.send();
   }
 }
