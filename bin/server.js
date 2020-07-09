@@ -1,6 +1,6 @@
 "use strict";
 
-const dns = require("native-dns");
+const dns = require("native-dns-multisocket");
 const Promise = require("bluebird");
 
 const port = 53;
