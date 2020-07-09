@@ -16,7 +16,7 @@ function getPort() {
   return config.port;
 }
 
-function lookup(question, server) {
+async function lookup(question, server) {
   if (_.isArray(server))
     return Promise.any(server.map((s) => lookup(question, s)));
 
@@ -38,27 +38,24 @@ function lookup(question, server) {
   });
 }
 
-function handleRequest(request, response) {
+async function handleRequest(request, response) {
   console.log("question", request.question);
 
   const { upstream } = config;
 
-  const [a, other] = _.partition(
-    request.question,
-    (question) => question.type === A && question.class === IN
-  );
-
-  const ff = other.map((question) =>
-    lookup(question, upstream).then((answer) => response.answer.push(...answer))
-  );
-
-  Promise.all(ff).then(() => {
-    const txt = a.map((question) =>
-      txtRec(question.name, [`x-comment: IN A lookup dropped to force IPv6`])
-    );
-    response.answer.push(...txt);
-    response.send();
+  const answers = _.flatten(
+    await Promise.all(request.question.map((q) => lookup(q, upstream)))
+  ).map((answer) => {
+    // Replace IN A with TXT record
+    if (answer.type === A && answer.class === IN)
+      return txtRec(answer.name, [
+        `x-comment IN A ${answer.address} dropped to force IPv6`,
+      ]);
+    return answer;
   });
+
+  response.answer.push(...answers);
+  response.send();
 }
 
 const port = getPort();
