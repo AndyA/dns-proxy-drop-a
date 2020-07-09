@@ -1,0 +1,22 @@
+{
+  "name": "dns-proxy",
+  "version": "0.0.1",
+  "description": "A simple DNS proxy",
+  "main": "index.js",
+  "bin": {
+    "dns-proxy": "server.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Andy Armstrong <andy@hexten.net>",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^3.2.0",
+    "axios": "^0.19.2",
+    "bluebird": "^3.7.2",
+    "lodash": "^4.17.18",
+    "native-dns": "^0.7.0",
+    "prettier": "^2.0.5"
+  }
+}
