@@ -25,7 +25,7 @@ async function lookup(question, server) {
 
     const answer = [];
 
-    const via = txtRec(question.name, [`x-via: ${server.address}`]);
+    const via = txtRec(question.name, [`x-dpda-via: ${server.address}`]);
 
     dns
       .Request({ question, server, timeout: 10000 })
@@ -43,19 +43,24 @@ async function handleRequest(request, response) {
 
   const { upstream } = config;
 
-  const answers = _.flatten(
-    await Promise.all(request.question.map((q) => lookup(q, upstream)))
-  ).map((answer) => {
-    // Replace IN A with TXT record
-    if (answer.type === A && answer.class === IN)
-      return txtRec(answer.name, [
-        `x-comment IN A ${answer.address} dropped to force IPv6`,
-      ]);
-    return answer;
-  });
+  try {
+    const answers = _.flatten(
+      await Promise.all(request.question.map((q) => lookup(q, upstream)))
+    ).map((answer) => {
+      // Replace IN A with TXT record
+      if (answer.type === A && answer.class === IN)
+        return txtRec(answer.name, [
+          `x-dpda-comment IN A ${answer.address} dropped to force IPv6`,
+        ]);
+      return answer;
+    });
 
-  response.answer.push(...answers);
-  response.send();
+    response.answer.push(...answers);
+  } catch (e) {
+    console.error(e);
+  } finally {
+    response.send();
+  }
 }
 
 const port = getPort();
