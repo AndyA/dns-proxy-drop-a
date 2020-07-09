@@ -18,7 +18,7 @@ function getPort() {
   return config.port;
 }
 
-async function lookup(question, server) {
+async function lookup(question, server, timeout) {
   if (_.isArray(server))
     return Promise.any(server.map((s) => lookup(question, s)));
 
@@ -30,7 +30,7 @@ async function lookup(question, server) {
     const via = dpdaRec(question.name, "via", server.address);
 
     dns
-      .Request({ question, server, timeout: 10000 })
+      .Request({ question, server, timeout })
       .on("message", (err, msg) => {
         if (err) reject(err); // ORLY? Not very DNS
         answer.push(...msg.answer);
@@ -43,7 +43,7 @@ async function lookup(question, server) {
 async function handleRequest(request, response) {
   console.log("question", request.question);
 
-  const { upstream } = config;
+  const { upstream, timeout } = config;
 
   const [a, other] = _.partition(
     request.question,
@@ -56,7 +56,7 @@ async function handleRequest(request, response) {
 
   try {
     const answers = _.flatten(
-      await Promise.all(other.map((q) => lookup(q, upstream)))
+      await Promise.all(other.map((q) => lookup(q, upstream, timeout)))
     );
 
     response.answer.push(...answers, ...info);
