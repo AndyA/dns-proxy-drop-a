@@ -9,6 +9,8 @@ const { A, TXT } = dns.consts.NAME_TO_QTYPE;
 const { IN } = dns.consts.NAME_TO_QCLASS;
 
 const txtRec = (name, data) => ({ name, type: TXT, class: IN, ttl: 60, data });
+const dpdaRec = (name, suffix, message) =>
+  txtRec(name, [`x-dpda-${suffix}: ${message}`]);
 
 function getPort() {
   const args = process.argv.slice(2);
@@ -25,7 +27,7 @@ async function lookup(question, server) {
 
     const answer = [];
 
-    const via = txtRec(question.name, [`x-dpda-via: ${server.address}`]);
+    const via = dpdaRec(question.name, "via", server.address);
 
     dns
       .Request({ question, server, timeout: 10000 })
@@ -43,19 +45,21 @@ async function handleRequest(request, response) {
 
   const { upstream } = config;
 
+  const [a, other] = _.partition(
+    request.question,
+    (q) => q.type === A && q.class === IN
+  );
+
+  const info = a.map((q) =>
+    dpdaRec(q.name, "dropped", "IN A dropped to force IPv6")
+  );
+
   try {
     const answers = _.flatten(
-      await Promise.all(request.question.map((q) => lookup(q, upstream)))
-    ).map((answer) => {
-      // Replace IN A with TXT record
-      if (answer.type === A && answer.class === IN)
-        return txtRec(answer.name, [
-          `x-dpda-comment IN A ${answer.address} dropped to force IPv6`,
-        ]);
-      return answer;
-    });
+      await Promise.all(other.map((q) => lookup(q, upstream)))
+    );
 
-    response.answer.push(...answers);
+    response.answer.push(...answers, ...info);
   } catch (e) {
     console.error(e);
   } finally {
