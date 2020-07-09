@@ -1,21 +1,31 @@
 "use strict";
 
 const dns = require("native-dns-multisocket");
+const _ = require("lodash");
 const Promise = require("bluebird");
+const config = require("config");
 
-const port = 53;
+const { A, TXT } = dns.consts.NAME_TO_QTYPE;
+const { IN } = dns.consts.NAME_TO_QCLASS;
 
-const authority = {
-  address: "2a00:1098:0:80:1000:3b:0:1",
-  port: 53,
-  type: "udp",
-};
+const txtRec = (name, data) => ({ name, type: TXT, class: IN, ttl: 60, data });
+
+function getPort() {
+  const args = process.argv.slice(2);
+  if (args.length === 1) return Number(args[0]);
+  return config.port;
+}
 
 function lookup(question, server) {
+  if (_.isArray(server))
+    return Promise.any(server.map((s) => lookup(question, s)));
+
   return new Promise((resolve, reject) => {
-    console.log("proxying", question);
+    console.log(`  proxying via ${server.address}`, question);
 
     const answer = [];
+
+    const via = txtRec(question.name, [`x-via: ${server.address}`]);
 
     dns
       .Request({ question, server, timeout: 10000 })
@@ -23,7 +33,7 @@ function lookup(question, server) {
         if (err) reject(err); // ORLY? Not very DNS
         answer.push(...msg.answer);
       })
-      .on("end", () => resolve(answer))
+      .on("end", () => resolve([...answer, via]))
       .send();
   });
 }
@@ -31,20 +41,31 @@ function lookup(question, server) {
 function handleRequest(request, response) {
   console.log("question", request.question);
 
-  const ff = request.question
-    .filter((question) => question.type !== dns.consts.NAME_TO_QTYPE.A)
-    .map((question) =>
-      lookup(question, authority).then((answer) =>
-        response.answer.push(...answer)
-      )
-    );
+  const { upstream } = config;
 
-  Promise.all(ff).then(() => response.send());
+  const [a, other] = _.partition(
+    request.question,
+    (question) => question.type === A && question.class === IN
+  );
+
+  const ff = other.map((question) =>
+    lookup(question, upstream).then((answer) => response.answer.push(...answer))
+  );
+
+  Promise.all(ff).then(() => {
+    const txt = a.map((question) =>
+      txtRec(question.name, [`x-comment: IN A lookup dropped to force IPv6`])
+    );
+    response.answer.push(...txt);
+    response.send();
+  });
 }
+
+const port = getPort();
 
 dns
   .createServer()
-  .on("listening", () => console.log("server listening"))
+  .on("listening", () => console.log(`server listening on ${port}`))
   .on("close", () => console.log("server closed"))
   .on("error", (err, buff, req, res) => console.error(err.stack))
   .on("socketError", (err, socket) => console.error(err))
