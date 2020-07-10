@@ -39,8 +39,9 @@ async function handleRequest(request, response) {
 
   const { upstream, timeout } = config;
 
+  // Filter out the IN A question.
   const keepers = request.question.filter(
-    (q) => q.type === A && q.class === IN
+    (q) => !(q.type === A && q.class === IN)
   );
 
   try {
