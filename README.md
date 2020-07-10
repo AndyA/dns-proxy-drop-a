@@ -1,7 +1,7 @@
 # dns-proxy-drop-a
 
 A DNS proxy which blocks lookups for IN A records. I'm using it on a Mythic
-Beasts hosted Raspberry Pi to force nodejs to use IPv6. Without this it
+Beasts hosted Raspberry Pi to force node.js to use IPv6. Without this it
 prefers IPv4 addresses - which don't generally route anywhere useful in this
 environment.
 
@@ -21,3 +21,121 @@ By stripping all ```IN A``` requests ```dns-proxy-drop-a``` forces node.js to us
 IPv6 which, thanks to the DNS64, NAT64 setup works even for domains that are
 IPv4 only.
 
+## A Better Way?
+
+I don't know if this is the best way to solve this problem. I found a few
+instances of people having problems with node.js in dual stack setups but no
+apparent solution. If anyone can think of a better work around let me known.
+
+## Setup
+
+```dns-proxy-drop-a``` runs as a local DNS proxy. I use
+[pm2](https://pm2.keymetrics.io) to start it at boot time. It runs under an
+unprivileged account and uses ```authbind``` to allow it listen on privileged
+port 53.
+
+## Installation
+
+If you haven't already installed node.js you can do it like this:
+
+```sh
+$ curl -sL https://deb.nodesource.com/setup_14.x | sudo bash -
+$ sudo apt install nodejs
+```
+
+You'll also need ```pm2``` and ```authbind```:
+
+```sh
+$ sudo apt install -y authbind
+$ sudo npm install -g pm2
+```
+
+_Note:_ You may not need to use `sudo` on the `npm` command if youre npm
+global prefix is user writeable.
+
+### Setup authbind
+
+We'll use `authbind` so we can run the proxy as an unprivileged user and still
+have it bind to port 53. You can learn more about `pm2` + `authbind` in the
+[pm2 documentation](https://pm2.keymetrics.io/docs/usage/pm2-doc-single-page/#listening-on-port-80-wo-root).
+First we'll give our account access to port 53:
+
+```sh
+$ sudo touch /etc/authbind/byport/53
+$ sudo chown $USER /etc/authbind/byport/53
+$ chmod 755 /etc/authbind/byport/53
+```
+
+### Setup pm2
+
+We need to make `pm2` always run under `authbind`. First edit your `~/.bashrc`
+to include an alias for `pm2`:
+
+```sh
+alias pm2='authbind --deep pm2'
+```
+
+Either `source ~/.bashrc` or log out and back in again so the alias is
+registered. Next we need to make `pm2` start at boot:
+
+```sh
+$ pm2 startup # then follow the instructions it displays
+```
+
+`pm2` will give you a command that will install a `systemd` startup script. The
+default script doesn't know about `authbind` so we have to make some changes.
+Open `/etc/systemd/system/pm2-$USER.service` in your editor and find the lines that look
+like this:
+
+```
+ExecStart=/usr/local/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/local/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/local/lib/node_modules/pm2/bin/pm2 kill
+```
+
+(Your pathnames may vary)
+
+Change them to this:
+
+```
+ExecStart=/usr/bin/authbind --deep /usr/local/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/bin/authbind --deep /usr/local/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/bin/authbind --deep /usr/local/lib/node_modules/pm2/bin/pm2 kill
+```
+
+That ensures `pm2` always runs under `authbind` and any processes it launches
+will be able to bind to port 53.
+
+### Launch the proxy
+
+Now we can start `dns-proxy-drop-a`. I use `pm2` to run three instances in
+cluster mode like this:
+
+```sh
+$ cd dns-proxy-drop-a
+$ pm2 start bin/proxy.js -i 3 --name dns-proxy-drop-a
+$ pm2 save  # start on boot
+```
+
+Use ```pm2 ps``` to see process status and ```pm2 log dns-proxy-drop-a``` to
+follow the proxy server's logs.
+
+You should now be able to query the proxy server:
+
+```
+$ dig +short @localhost hexten.net a     # no IN A result
+$ dig +short @localhost hexten.net aaaa  # NAT64 of real IN A
+2a00:1098:0:82:1000:3a:bc28:4394
+```
+
+Next we're going to configure your Pi to use the proxy for all its DNS, but
+before that I recommend restarting the Pi and making sure that the proxy has
+started up and is listening on port 53. Assuming that works edit
+`/etc/resolv.conf` to contain:
+
+```
+nameserver 127.0.0.1
+```
+
+Now any attempts to resolve IPv4 A records will be silently dropped and node.js
+should be able to connect to the internet.
