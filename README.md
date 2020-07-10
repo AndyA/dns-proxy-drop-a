@@ -4,10 +4,6 @@ A DNS proxy which blocks lookups for IN A records.
 
 ## But why?
 
-I'm using it on a Mythic Beasts hosted Raspberry Pi to force node.js to use
-IPv6. Without this node.js prefers IPv4 addresses - which don't generally route
-anywhere useful in this environment.
-
 Mythic Beasts excellent 
 [hosted Raspberry Pis](https://www.mythic-beasts.com/order/rpi) are
 IPv6 to the internet. They have an IPv4 gateway configured but it doesn't route
