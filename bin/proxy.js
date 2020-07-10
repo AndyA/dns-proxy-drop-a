@@ -28,7 +28,7 @@ async function lookup(question, server, timeout) {
     dns
       .Request({ question, server, timeout })
       .on("message", (err, msg) => {
-        if (err) reject(err); // ORLY? Not very DNS
+        if (err) reject(err);
         answer.push(...msg.answer);
       })
       .on("end", () => resolve(answer))
@@ -41,7 +41,7 @@ async function handleRequest(request, response) {
 
   const { upstream, timeout } = config;
 
-  // Filter out the IN A question.
+  // Filter out the IN A questions.
   const keepers = request.question.filter(
     (q) => !(q.type === A && q.class === IN)
   );
