@@ -14,9 +14,8 @@ DNS64 and a NAT64 gateway.
 
 This works well for most software but node.js is (I think) confused by the
 presence of an IPv4 route and tends to use that in preference to the IPv6
-gateway which routes correctly to the internet. That means that npm doesn't
-work and most node.js code that attempts to connect to a remote service will also
-fail.
+gateway. That means that npm doesn't work and most node.js code that attempts
+to connect to a remote service will also fail.
 
 By stripping all ```IN A``` requests ```dns-proxy-drop-a``` forces node.js to use
 IPv6 which, thanks to the DNS64, NAT64 setup works even for domains that are
@@ -26,8 +25,8 @@ IPv4 only.
 
 I don't know if this is the best way to solve this problem. I found a few
 instances of people having problems with node.js in dual stack setups but no
-apparent solution. If anyone can think of a betterwork around please let me
-known.
+apparent solution. If anyone can think of a better workaround please let me
+know.
 
 ## Setup
 
@@ -52,7 +51,7 @@ $ sudo apt install -y authbind
 $ sudo npm install -g pm2
 ```
 
-_Note:_ You may not need to use `sudo` on the `npm` command if youre npm
+_Note:_ You may not need to use `sudo` on the `npm` command if your npm
 global prefix is user writeable.
 
 ### Setup authbind
@@ -70,8 +69,8 @@ $ chmod 755 /etc/authbind/byport/53
 
 ### Setup pm2
 
-We need to make `pm2` always run under `authbind`. First edit your `~/.bashrc`
-to include an alias for `pm2`:
+We need to make sure `pm2` always runs under `authbind`. First edit your
+`~/.bashrc` to include an alias for `pm2`:
 
 ```sh
 alias pm2='authbind --deep pm2'
