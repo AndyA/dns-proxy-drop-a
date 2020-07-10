@@ -5,12 +5,8 @@ const _ = require("lodash");
 const Promise = require("bluebird");
 const config = require("config");
 
-const { A, TXT } = dns.consts.NAME_TO_QTYPE;
+const { A } = dns.consts.NAME_TO_QTYPE;
 const { IN } = dns.consts.NAME_TO_QCLASS;
-
-const txtRec = (name, data) => ({ name, type: TXT, class: IN, ttl: 60, data });
-const dpdaRec = (name, suffix, message) =>
-  txtRec(name, [`x-dpda-${suffix}: ${message}`]);
 
 function getPort() {
   const args = process.argv.slice(2);
@@ -27,15 +23,13 @@ async function lookup(question, server, timeout) {
 
     const answer = [];
 
-    const via = dpdaRec(question.name, "via", server.address);
-
     dns
       .Request({ question, server, timeout })
       .on("message", (err, msg) => {
         if (err) reject(err); // ORLY? Not very DNS
         answer.push(...msg.answer);
       })
-      .on("end", () => resolve([...answer, via]))
+      .on("end", () => resolve(answer))
       .send();
   });
 }
@@ -45,21 +39,16 @@ async function handleRequest(request, response) {
 
   const { upstream, timeout } = config;
 
-  const [a, other] = _.partition(
-    request.question,
+  const keepers = request.question.filter(
     (q) => q.type === A && q.class === IN
-  );
-
-  const info = a.map((q) =>
-    dpdaRec(q.name, "dropped", "IN A dropped to force IPv6")
   );
 
   try {
     const answers = _.flatten(
-      await Promise.all(other.map((q) => lookup(q, upstream, timeout)))
+      await Promise.all(keepers.map((q) => lookup(q, upstream, timeout)))
     );
 
-    response.answer.push(...answers, ...info);
+    response.answer.push(...answers);
   } catch (e) {
     console.error(e);
   } finally {
