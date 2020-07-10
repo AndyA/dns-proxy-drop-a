@@ -1,5 +1,10 @@
 "use strict";
 
+// A DNS proxy which blocks lookups for IN A records. I'm using it on a Mythic
+// Beasts hosted Raspberry Pi to force nodejs to use IPv6. Without this it
+// prefers IPv4 addresses - which don't generally route anywhere useful in this
+// environment.
+
 const dns = require("native-dns-multisocket");
 const _ = require("lodash");
 const Promise = require("bluebird");
