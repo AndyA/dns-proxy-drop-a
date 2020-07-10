@@ -48,7 +48,7 @@ async function handleRequest(request, response) {
 
   try {
     const answers = _.flatten(
-      await Promise.all(keepers.map((q) => lookup(q, upstream, timeout)))
+      await Promise.map(keepers, (q) => lookup(q, upstream, timeout))
     );
 
     response.answer.push(...answers);
