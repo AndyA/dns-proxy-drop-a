@@ -185,5 +185,5 @@ should be able to connect to the internet.
 - [x] `authbind` port permission in `/etc/authbind/byport/53`
 - [x] `pm2` running under `authbind` (startup script & alias)
 - [x] ```pm2 save``` so that proxy starts on reboot
-- [x] add ```nameserver 127.0.0.1``` to `/etc/resolv.conf`
+- [x] add ```nameserver 127.0.0.1``` to `/etc/resolv.conf` and remove others
 
