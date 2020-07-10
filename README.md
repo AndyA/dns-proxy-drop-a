@@ -178,3 +178,12 @@ nameserver 127.0.0.1
 
 Now any attempts to resolve IPv4 A records will be silently dropped and node.js
 should be able to connect to the internet.
+
+## Checklist
+
+- [x] remove registry.npmjs.org from /etc/hosts
+- [x] authbind port permission in /etc/authbind/byport/53
+- [x] pm2 running under authbind (startup script & alias)
+- [x] pm2 save so that proxy starts on reboot
+- [x] add nameserver 127.0.0.1 to /etc/resolv.conf
+
