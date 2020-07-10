@@ -54,6 +54,44 @@ $ sudo npm install -g pm2
 _Note:_ You may not need to use `sudo` on the `npm` command if your npm
 global prefix is user writeable.
 
+### Install node dependencies
+
+Next we need to install proxy's javascript dependencies. We're going to use
+`npm` to do that. However `npm` won't work just yet - it has the problem that
+`dns-proxy-drop-a` is designed to solve. To get `npm` working we need to
+temporarily add an IPv6 address for `registry.npmjs.org`. Add the following
+line to `/etc/hosts`:
+
+```
+2606:4700::6810:1923 registry.npmjs.org
+```
+
+Now go to the directory where you have this code and install the dependencies:
+
+```sh
+$ cd dns-proxy-drop-a
+$ npm install
+```
+
+And check that the proxy will run:
+
+```sh
+$ node bin/proxy.js 5353
+```
+
+While it's running you will be able to query it like this:
+
+```sh
+$ dig @localhost -p 5353 hexten.net a
+$ dig @localhost -p 5353 hexten.net aaaa
+```
+
+You should see that request for A records return nothing.
+
+If that is all working you can remove or comment out the entry for
+`registry.npmjs.org` in `/etc/hosts`. Once the proxy is running you
+shouldn't need that hack again.
+
 ### Setup authbind
 
 We'll use `authbind` so we can run the proxy as an unprivileged user and still
