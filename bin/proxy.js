@@ -10,8 +10,10 @@ const { IN } = dns.consts.NAME_TO_QCLASS;
 
 function getPort() {
   const args = process.argv.slice(2);
-  if (args.length === 1) return Number(args[0]);
-  return config.port;
+  if (!args.length) return config.port;
+  if (args.length !== 1 || isNaN(args[0]))
+    throw new Error("Syntax: proxy.js [<port>]");
+  return Number(args[0]);
 }
 
 async function lookup(question, server, timeout) {
