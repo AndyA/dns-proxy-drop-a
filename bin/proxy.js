@@ -21,11 +21,11 @@ function getPort() {
   return Number(args[0]);
 }
 
-const { upstream, timeout } = config;
+const { upstream, timeout, debug } = config;
 const app = new DonutDNS({ upstream, timeout });
 
 // Debugging
-if (config.debug)
+if (debug)
   app.use((req, res, next) => {
     console.log("question:", req.question);
     const orig = res.send.bind(res);
