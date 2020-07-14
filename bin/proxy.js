@@ -36,20 +36,11 @@ if (config.debug)
     next();
   });
 
-const isA = a => a.class === IN && a.type === A;
+const isA = (a) => a.class === IN && a.type === A;
 
 app.use(async (req, res, next) => {
   await app.proxyRequest(req, res);
-  const { name } = req.question[0];
-  const notes = res.answer.filter(isA).map(a => ({
-    name: a.name,
-    class: a.class,
-    type: TXT,
-    ttl: a.ttl,
-    data: [`IN A ${a.address} dropped by dns-proxy-drop-a`]
-  }));
-  res.answer = res.answer.filter(a => !isA(a));
-  res.additional.push(...notes);
+  res.answer = res.answer.filter((a) => !isA(a));
   res.send();
 });
 
