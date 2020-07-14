@@ -146,12 +146,11 @@ will be able to bind to port 53.
 
 ### Launch the proxy
 
-Now we can start `dns-proxy-drop-a`. I use `pm2` to run three instances in
-cluster mode like this:
+Now we can start `dns-proxy-drop-a` like this:
 
 ```sh
 $ cd dns-proxy-drop-a
-$ pm2 start bin/proxy.js -i 3 --name dns-proxy-drop-a
+$ pm2 start bin/proxy.js --name dns-proxy-drop-a
 $ pm2 save  # start on boot
 ```
 
