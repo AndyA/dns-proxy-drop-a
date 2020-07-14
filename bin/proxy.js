@@ -5,12 +5,12 @@
 // prefers IPv4 addresses - which don't generally route anywhere useful in this
 // environment.
 
-const dns = require("native-dns-multisocket");
 const _ = require("lodash");
-const Promise = require("bluebird");
 const config = require("config");
+const DonutDNS = require("donut-dns");
+const dns = require("native-dns-multisocket");
 
-const { A } = dns.consts.NAME_TO_QTYPE;
+const { A, TXT } = dns.consts.NAME_TO_QTYPE;
 const { IN } = dns.consts.NAME_TO_QCLASS;
 
 function getPort() {
@@ -21,57 +21,36 @@ function getPort() {
   return Number(args[0]);
 }
 
-async function lookup(question, server, timeout) {
-  if (_.isArray(server))
-    return Promise.any(server.map((s) => lookup(question, s)));
+const { upstream, timeout } = config;
+const app = new DonutDNS({ upstream, timeout });
 
-  return new Promise((resolve, reject) => {
-    console.log(`  proxying via ${server.address}`, question);
-
-    const answer = [];
-
-    dns
-      .Request({ question, server, timeout })
-      .on("message", (err, msg) => {
-        if (err) reject(err);
-        answer.push(...msg.answer);
-      })
-      .on("end", () => resolve(answer))
-      .send();
+// Debugging
+if (config.debug)
+  app.use((req, res, next) => {
+    console.log("question:", req.question);
+    const orig = res.send.bind(res);
+    res.send = () => {
+      console.log("answer:", res.answer);
+      orig();
+    };
+    next();
   });
-}
 
-async function handleRequest(request, response) {
-  console.log("question", request.question);
+const isA = a => a.class === IN && a.type === A;
 
-  const { upstream, timeout } = config;
+app.use(async (req, res, next) => {
+  await app.proxyRequest(req, res);
+  const { name } = req.question[0];
+  const notes = res.answer.filter(isA).map(a => ({
+    name: a.name,
+    class: a.class,
+    type: TXT,
+    ttl: a.ttl,
+    data: [`IN A ${a.address} dropped by dns-proxy-drop-a`]
+  }));
+  res.answer = res.answer.filter(a => !isA(a));
+  res.additional.push(...notes);
+  res.send();
+});
 
-  // Filter out the IN A questions.
-  const keepers = request.question.filter(
-    (q) => !(q.type === A && q.class === IN)
-  );
-
-  try {
-    const answers = _.flatten(
-      await Promise.map(keepers, (q) => lookup(q, upstream, timeout))
-    );
-
-    response.answer.push(...answers);
-  } catch (e) {
-    console.error(e);
-  } finally {
-    console.log("answering", request.question);
-    response.send();
-  }
-}
-
-const port = getPort();
-
-dns
-  .createServer()
-  .on("listening", () => console.log(`server listening on ${port}`))
-  .on("close", () => console.log("server closed"))
-  .on("error", (err, buff, req, res) => console.error(err.stack))
-  .on("socketError", (err, socket) => console.error(err))
-  .on("request", handleRequest)
-  .serve(port);
+app.listen(getPort());
