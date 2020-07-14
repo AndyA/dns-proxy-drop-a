@@ -38,7 +38,7 @@ if (config.debug)
 
 const isA = (a) => a.class === IN && a.type === A;
 
-app.use(async (req, res, next) => {
+app.use(async (req, res) => {
   await app.proxyRequest(req, res);
   res.answer = res.answer.filter((a) => !isA(a));
   res.send();
